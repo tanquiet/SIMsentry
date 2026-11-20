@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SwapSentry Demo</title>
+<meta name="description" content="SwapSentry: SIM-swap fraud detection with three models, evidence rules and fact-checked reports. Demo built from real recorded runs.">
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#eef1f5; --ink:#141922; --ink-2:#4a5464; --ink-3:#7a8494;
+  --line:#dde2ea; --accent:#2563eb; --accent-soft:#e3ecff;
+  --danger:#c2410c; --danger-soft:#fdebe1; --ok:#0f7a4f; --ok-soft:#dcf3e8; --warn:#a16207; --warn-soft:#fbf1d6;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:Inter,"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1016; --surface:#141a22; --surface-2:#1b2330; --ink:#e8edf4; --ink-2:#a9b3c2; --ink-3:#768195;
+    --line:#263142; --accent:#6c9dff; --accent-soft:#1a2a4a;
+    --danger:#ff8a5c; --danger-soft:#3a1f14; --ok:#4fd39a; --ok-soft:#12301f; --warn:#f2c14e; --warn-soft:#352a10;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1016; --surface:#141a22; --surface-2:#1b2330; --ink:#e8edf4; --ink-2:#a9b3c2; --ink-3:#768195;
+  --line:#263142; --accent:#6c9dff; --accent-soft:#1a2a4a;
+  --danger:#ff8a5c; --danger-soft:#3a1f14; --ok:#4fd39a; --ok-soft:#12301f; --warn:#f2c14e; --warn-soft:#352a10;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+code,.mono{font-family:var(--mono);font-size:.9em}
+h1,h2,h3{line-height:1.15;margin:0 0 .5em;letter-spacing:-.015em}
+h2{font-size:clamp(1.6rem,3.2vw,2.3rem)}
+h3{font-size:1.05rem}
+p{margin:0 0 1em}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+section{padding:72px 0;border-bottom:1px solid var(--line);min-height:calc(100vh - 56px)}
+section:last-of-type{border-bottom:0;min-height:auto}
+.kicker{font:600 .78rem/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.lead{font-size:1.12rem;color:var(--ink-2);max-width:720px}
+.muted{color:var(--ink-3)}
+.small{font-size:.85rem}
+
+/* nav */
+nav.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+nav.top .wrap{display:flex;align-items:center;gap:16px;height:56px}
+.brand{font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.brand svg{flex:none}
+.navlinks{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1}
+.navlinks::-webkit-scrollbar{display:none}
+.navlinks a{color:var(--ink-2);text-decoration:none;font-size:.88rem;padding:6px 10px;border-radius:8px;white-space:nowrap}
+.navlinks a.on,.navlinks a:hover{background:var(--surface-2);color:var(--ink)}
+.iconbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;height:34px;min-width:34px;cursor:pointer;font-size:.9rem}
+
+/* generic */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:860px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2{grid-template-columns:1fr}}
+@media (max-width:520px){.g3,.g4{grid-template-columns:1fr}}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
+.pill.red{background:var(--danger-soft);color:var(--danger)}
+.pill.green{background:var(--ok-soft);color:var(--ok)}
+.pill.amber{background:var(--warn-soft);color:var(--warn)}
+.pill.blue{background:var(--accent-soft);color:var(--accent)}
+.btn{display:inline-flex;align-items:center;gap:8px;border:0;background:var(--accent);color:#fff;font:600 .95rem var(--sans);padding:11px 18px;border-radius:10px;cursor:pointer;text-decoration:none}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.btn:disabled{opacity:.55;cursor:default}
+
+/* hero */
+.hero{display:flex;align-items:center}
+.hero h1{font-size:clamp(2.2rem,5.6vw,4rem);max-width:900px}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.stats{margin-top:40px}
+.stat .v{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;letter-spacing:-.02em}
+.stat .l{color:var(--ink-2);font-size:.9rem}
+.stat .s{color:var(--ink-3);font-size:.78rem;margin-top:4px}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--warn-soft);color:var(--ink);border-radius:12px;padding:12px 14px;font-size:.92rem;margin-top:28px;max-width:760px}
+
+/* attack timeline */
+.steps{counter-reset:s}
+.step{position:relative;padding-top:44px}
+.step:before{counter-increment:s;content:counter(s);position:absolute;top:0;left:0;width:32px;height:32px;border-radius:50%;background:var(--danger-soft);color:var(--danger);display:grid;place-items:center;font-weight:700}
+.step.good:before{background:var(--ok-soft);color:var(--ok);content:"✓"}
+.feat{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.feat:last-child{border-bottom:0}
+.feat code{color:var(--ink-3);font-size:.75rem;text-align:right;word-break:break-all}
+
+/* pipeline svg */
+.pipe{width:100%;height:auto;display:block}
+.pipe .node rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5;transition:all .2s}
+.pipe .node{cursor:pointer}
+.pipe .node:hover rect,.pipe .node.on rect{stroke:var(--accent);fill:var(--accent-soft)}
+.pipe .node text{fill:var(--ink);font:600 13px var(--sans)}
+.pipe .node text.sub{fill:var(--ink-3);font:500 11px var(--sans)}
+.pipe .edge{stroke:var(--ink-3);stroke-width:1.4;fill:none;marker-end:url(#arr)}
+.pipe .lbl{fill:var(--ink-3);font:500 11px var(--sans)}
+#stageInfo{min-height:150px}
+.pipe-scroll{overflow-x:auto}
+.pipe-scroll svg{min-width:760px}
+
+/* replay */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:10px 14px;cursor:pointer;text-align:left;font:inherit;flex:1 1 200px}
+.tab b{display:block;font-size:.95rem}
+.tab span{font-size:.8rem;color:var(--ink-3)}
+.tab.on{border-color:var(--accent);background:var(--accent-soft)}
+.inputbox{font-family:var(--mono);font-size:.85rem;background:var(--surface-2);border-radius:10px;padding:14px;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+.stage{opacity:.35;transition:opacity .35s,transform .35s;transform:translateY(6px)}
+.stage.lit{opacity:1;transform:none}
+.stage .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.stage .hd h3{margin:0}
+.big{font-size:2rem;font-weight:700;letter-spacing:-.02em;line-height:1}
+.meter{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin:10px 0 4px}
+.meter i{display:block;height:100%;width:0;border-radius:99px;transition:width .8s ease}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.88rem}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0;font-family:var(--mono);font-size:.85rem;text-align:right}
+.contrib{display:grid;grid-template-columns:118px 1fr 44px;gap:8px;align-items:center;font-size:.8rem;margin:5px 0}
+.contrib .bar{position:relative;height:14px;background:var(--surface-2);border-radius:4px}
+.contrib .bar:after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--ink-3)}
+.contrib .bar i{position:absolute;top:0;bottom:0;border-radius:3px}
+.contrib .val{font-family:var(--mono);text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.verdict{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 20px;border-radius:14px}
+.verdict.red{background:var(--danger-soft)} .verdict.green{background:var(--ok-soft)}
+.verdict .big{font-size:2.6rem}
+.math{font-family:var(--mono);font-size:.82rem;background:var(--surface-2);border-radius:10px;padding:12px;overflow-x:auto;white-space:pre;line-height:1.7}
+.report{background:var(--surface-2);border-radius:10px;padding:14px 16px;font-size:.9rem;white-space:pre-wrap;word-break:break-word;min-height:60px}
+.report b{color:var(--ink)}
+.caret{display:inline-block;width:7px;height:1em;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.check{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-size:.9rem;margin-top:12px}
+.check.ok{background:var(--ok-soft)} .check.bad{background:var(--danger-soft)}
+details.raw summary{cursor:pointer;color:var(--ink-2);font-size:.88rem;margin-top:8px}
+details.raw pre{font-family:var(--mono);font-size:.75rem;background:var(--surface-2);border-radius:10px;padding:12px;max-height:340px;overflow:auto}
+.notes{font-family:var(--mono);font-size:.76rem;color:var(--ink-2);max-height:150px;overflow:auto;margin:0;padding-left:18px}
+.receipt{font-size:.8rem;color:var(--ink-3);display:flex;gap:8px 16px;flex-wrap:wrap;margin-top:12px}
+
+/* playground */
+.slider{margin:14px 0}
+.slider label{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:6px}
+.slider output{font-family:var(--mono);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.toggles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;font-size:.88rem}
+.toggles label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.selfcheck{font-size:.85rem}
+.selfcheck table{width:100%;border-collapse:collapse}
+.selfcheck td,.selfcheck th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
+.selfcheck td.n,.selfcheck th.n{text-align:right;font-family:var(--mono)}
+
+/* results */
+.hbar{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:10px;align-items:center;margin:8px 0;font-size:.88rem}
+.hbar .track{position:relative;height:26px;background:var(--surface-2);border-radius:6px;overflow:hidden}
+.hbar .track i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;transition:width 1s ease}
+.hbar .track span{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:600 .8rem var(--mono)}
+.legend{display:flex;gap:14px;font-size:.8rem;color:var(--ink-2);margin-bottom:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+table.t{width:100%;border-collapse:collapse;font-size:.88rem}
+table.t th,table.t td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left}
+table.t th{color:var(--ink-3);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+table.t td.n{text-align:right;font-family:var(--mono)}
+.tscroll{overflow-x:auto}
+.cat{display:grid;grid-template-columns:minmax(120px,170px) 1fr 90px;gap:10px;align-items:center;font-size:.85rem;margin:7px 0}
+.cat .track{position:relative;height:12px;background:var(--surface-2);border-radius:6px}
+.cat .track i{position:absolute;top:0;bottom:0;border-radius:6px}
+.cat .track b{position:absolute;top:-3px;bottom:-3px;width:3px;border-radius:2px;background:var(--ink-3)}
+.cat .n{font-family:var(--mono);text-align:right;font-size:.8rem}
+ul.lim{padding-left:20px;margin:0} ul.lim li{margin:6px 0}
+.cmd{font-family:var(--mono);background:#0f141b;color:#d6e2f0;border-radius:10px;padding:14px 16px;font-size:.88rem;white-space:pre;overflow-x:auto}
+.foot{padding:28px 0;color:var(--ink-3);font-size:.85rem}
+.keyhint{position:fixed;right:16px;bottom:16px;font-size:.75rem;color:var(--ink-3);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;box-shadow:var(--shadow)}
+@media (max-width:700px){.keyhint{display:none}.brand span.full{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<nav class="top"><div class="wrap">
+  <div class="brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="var(--accent)"/><rect x="9" y="8" width="6" height="8" rx="1.2" stroke="#fff" stroke-width="1.6"/><path d="M11 11h2M11 13.5h2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <span>SwapSentry</span>
+  </div>
+  <div class="navlinks" id="navlinks">
+    <a href="#intro">Intro</a><a href="#problem">Problem</a><a href="#how">How it works</a><a href="#replay">Live replay</a><a href="#math">Check the math</a><a href="#results">Results</a><a href="#limits">Limits</a><a href="#run">Run it</a>
+  </div>
+  <button class="iconbtn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+</div></nav>
+
+<!-- 1. INTRO -->
+<section id="intro" class="hero"><div class="wrap">
+  <div class="kicker">SIM-swap fraud detection &amp; investigation</div>
+  <h1>Catch the SIM swap <em>before</em> the one-time password is used.</h1>
+  <p class="lead">SwapSentry scores every SIM-swap event with three independent models, lists the evidence behind the score, and has a small language model draft an investigation report. Every report is fact-checked before it is shown. A human analyst makes the final decision.</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <a class="btn" href="#replay">▶ Watch a real case run</a>
+    <a class="btn ghost" href="#how">How it works</a>
+  </div>
+  <div class="grid g4 stats">
+    <div class="card stat"><div class="v">0.9991</div><div class="l">Precision, LightGBM + Isolation Forest</div><div class="s">15,000 held-out rows</div></div>
+    <div class="card stat"><div class="v">99.2%</div><div class="l">Laya accuracy after fine-tuning (base: 25.6%)</div><div class="s">6,000 unseen test rows</div></div>
+    <div class="card stat"><div class="v">~3.7 ms</div><div class="l">To score one event</div><div class="s">0.33 ms per event in a batch</div></div>
+    <div class="card stat"><div class="v">147</div><div class="l">Automated tests</div><div class="s">Scoring, fusion, parser, Qwen fact-check, UI</div></div>
+  </div>
+  <div class="banner">⚠️ <div><b>Prototype, synthetic data.</b> Every number on this page was measured on a synthetic dataset of 100,000 events. SwapSentry <i>recommends</i>; it does not accuse anyone.</div></div>
+</div></section>
+
+<!-- 2. PROBLEM -->
+<section id="problem"><div class="wrap">
+  <div class="kicker">The problem</div>
+  <h2>A SIM swap hands your phone number, and every OTP, to someone else.</h2>
+  <p class="lead">The attacker convinces the carrier to move the victim's number onto a SIM they control. From then on, the bank's one-time passwords go to the attacker.</p>
+  <div class="grid g4 steps" style="margin:32px 0 40px">
+    <div class="step"><h3>Gather details</h3><p class="muted small">The attacker phishes or buys the victim's personal details.</p></div>
+    <div class="step"><h3>Swap the SIM</h3><p class="muted small">They pose as the victim and get the number moved to a new SIM or eSIM.</p></div>
+    <div class="step"><h3>Intercept OTPs</h3><p class="muted small">The victim loses signal. Login and payment codes now reach the attacker.</p></div>
+    <div class="step good"><h3>SwapSentry steps in</h3><p class="muted small">The swap event is scored in milliseconds and risky ones are held for review.</p></div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>What gives a fraudulent swap away</h3>
+      <p class="muted small">SwapSentry reads 11 signals from each event. You can type them in plain English, upload a CSV or JSON file, or fill in a form.</p>
+      <div id="featList"></div>
+    </div>
+    <div class="card">
+      <h3>Why not just one model?</h3>
+      <p class="small"><b>LightGBM + Isolation Forest</b> are very precise on numbers, and the Isolation Forest also catches patterns that look nothing like normal traffic. They only see numbers.</p>
+      <p class="small"><b>Laya</b> (ModernBERT-large, 421M parameters, fine-tuned) reads the event as text. It gives a second opinion and decides when a human must look.</p>
+      <p class="small"><b>Qwen 3.5 2B</b> takes 12 to 40 seconds per report, so it runs only on flagged cases. It explains the decision but never makes it.</p>
+      <p class="small" style="margin:0"><b>Evidence rules</b> are plain if-then checks. They are the only source of the evidence list, so nothing in it is made up.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 3. HOW -->
+<section id="how"><div class="wrap">
+  <div class="kicker">Architecture</div>
+  <h2>One event, seven stages, one audit trail.</h2>
+  <p class="lead">Click a stage to see what it does.</p>
+  <div class="card" style="margin-top:20px">
+    <div class="pipe-scroll">
+    <svg class="pipe" viewBox="0 0 1000 300" role="img" aria-label="SwapSentry pipeline diagram">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="var(--ink-3)"/></marker></defs>
+      <path class="edge" d="M128 150 H160"/>
+      <path class="edge" d="M290 150 C305 150 305 60 322 60"/>
+      <path class="edge" d="M290 150 H322"/>
+      <path class="edge" d="M290 150 C305 150 305 240 322 240"/>
+      <path class="edge" d="M472 60 C490 60 490 140 508 145"/>
+      <path class="edge" d="M472 150 H508"/>
+      <path class="edge" d="M472 240 C490 240 490 160 508 155"/>
+      <path class="edge" d="M628 150 H660"/>
+      <path class="edge" d="M760 130 C775 130 775 80 790 80"/>
+      <text class="lbl" x="732" y="100">flagged</text>
+      <path class="edge" d="M760 170 C775 170 775 225 790 225"/>
+      <text class="lbl" x="728" y="208">clear</text>
+      <path class="edge" d="M890 80 C925 80 925 120 925 128"/>
+      <path class="edge" d="M890 225 C925 225 925 180 925 172"/>
+      <g class="node" data-k="input"><rect x="10" y="115" width="118" height="70" rx="12"/><text x="69" y="146" text-anchor="middle">Input</text><text class="sub" x="69" y="164" text-anchor="middle">text · CSV · JSON</text></g>
+      <g class="node" data-k="parse"><rect x="162" y="115" width="128" height="70" rx="12"/><text x="226" y="146" text-anchor="middle">Parser</text><text class="sub" x="226" y="164" text-anchor="middle">→ 11 features</text></g>
+      <g class="node" data-k="ml"><rect x="324" y="25" width="148" height="70" rx="12"/><text x="398" y="56" text-anchor="middle">LightGBM + IForest</text><text class="sub" x="398" y="74" text-anchor="middle">ML risk 0–100</text></g>
+      <g class="node" data-k="laya"><rect x="324" y="115" width="148" height="70" rx="12"/><text x="398" y="146" text-anchor="middle">Laya (fine-tuned)</text><text class="sub" x="398" y="164" text-anchor="middle">p(fraud) + gate</text></g>
+      <g class="node" data-k="evidence"><rect x="324" y="205" width="148" height="70" rx="12"/><text x="398" y="236" text-anchor="middle">Evidence rules</text><text class="sub" x="398" y="254" text-anchor="middle">plain indicators</text></g>
+      <g class="node" data-k="fusion"><rect x="510" y="115" width="118" height="70" rx="12"/><text x="569" y="146" text-anchor="middle">Fusion</text><text class="sub" x="569" y="164" text-anchor="middle">risk 0–100</text></g>
+      <g class="node" data-k="gate"><rect x="662" y="115" width="98" height="70" rx="12"/><text x="711" y="146" text-anchor="middle">Flag?</text><text class="sub" x="711" y="164" text-anchor="middle">decision rule</text></g>
+      <g class="node" data-k="qwen"><rect x="792" y="45" width="98" height="70" rx="12"/><text x="841" y="76" text-anchor="middle">Qwen</text><text class="sub" x="841" y="94" text-anchor="middle">+ fact check</text></g>
+      <g class="node" data-k="nore"><rect x="792" y="190" width="98" height="70" rx="12"/><text x="841" y="221" text-anchor="middle">No report</text><text class="sub" x="841" y="239" text-anchor="middle">logged</text></g>
+      <g class="node" data-k="human"><rect x="880" y="128" width="112" height="44" rx="12"/><text x="936" y="155" text-anchor="middle">Analyst</text></g>
+    </svg>
+    </div>
+    <div id="stageInfo" style="border-top:1px solid var(--line);margin-top:12px;padding-top:16px"></div>
+  </div>
+</div></section>
+
+<!-- 4. REPLAY -->
+<section id="replay"><div class="wrap">
+  <div class="kicker">Live replay · real recorded cases</div>
+  <h2>Watch real cases go through the pipeline.</h2>
+  <p class="lead">These are not mock-ups. Each case below was taken from SwapSentry's own case database (<code>simguard.db</code>) as the system wrote it on 13 Nov 2026. Model scores, latencies and the Qwen text are unedited. Open "Raw record" to see the stored JSON.</p>
+  <div class="tabs" id="caseTabs"></div>
+  <div class="grid g2" style="align-items:start">
+    <div class="card">
+      <div class="hd" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <h3 style="margin:0">What the analyst entered</h3><span class="pill" id="srcPill"></span>
+      </div>
+      <div class="inputbox" id="rawInput"></div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center">
+        <button class="btn" id="runBtn">▶ Run through pipeline</button>
+        <label class="small muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="fastChk"> skip animation</label>
+      </div>
+    </div>
+    <div class="card stage" data-s="0">
+      <div class="hd"><h3>① Parser</h3><span class="pill" id="parsePill"></span></div>
+      <p class="small muted" style="margin-bottom:8px">How each value was read. Nothing is guessed: a missing value is asked for, never filled in.</p>
+      <ol class="notes" id="parseNotes"></ol>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:16px;align-items:start">
+    <div class="card stage" data-s="1">
+      <div class="hd"><h3>② LightGBM + IForest</h3><span class="pill mono" id="mlLat"></span></div>
+      <div class="big" id="mlRisk">–</div><div class="small muted">ML risk score</div>
+      <div class="meter"><i id="mlMeter"></i></div>
+      <dl class="kv" style="margin-top:12px"><dt>LightGBM p(fraud)</dt><dd id="lgbm"></dd><dt>Isolation-Forest anomaly</dt><dd id="anom"></dd></dl>
+      <p class="small muted" style="margin:14px 0 4px">Top feature contributions (log-odds). <span style="color:var(--danger)">Right = toward fraud</span>, <span style="color:var(--ok)">left = toward legitimate</span></p>
+      <div id="contribs"></div>
+    </div>
+    <div class="card stage" data-s="2">
+      <div class="hd"><h3>③ Laya</h3><span class="pill mono" id="layaLat"></span></div>
+      <div class="big" id="layaP">–</div><div class="small muted">p(fraud), fine-tuned ModernBERT-large</div>
+      <div class="meter"><i id="layaMeter"></i></div>
+      <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="small muted">Gate:</span><span class="pill" id="layaGate"></span></div>
+      <p class="small muted" style="margin-top:12px;margin-bottom:0">Block if p ≥ 0.88, allow if p ≤ 0.12, otherwise send to a human. The cut-offs were fitted on a held-out calibration slice.</p>
+    </div>
+    <div class="card stage" data-s="3">
+      <div class="hd"><h3>④ Evidence rules</h3><span class="pill">deterministic</span></div>
+      <div class="chips" id="evidence"></div>
+      <p class="small muted" style="margin-top:14px;margin-bottom:0">This list comes only from these if-then rules, never from a language model.</p>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:16px;align-items:start">
+    <div class="card stage" data-s="4">
+      <div class="hd"><h3>⑤ Fusion &amp; decision</h3><span class="pill" id="agreePill"></span></div>
+      <div class="verdict" id="verdictBox"><div class="big" id="finalScore">–</div><div><div style="font-weight:700;font-size:1.1rem" id="verdictTxt"></div><div class="small" id="verdictWhy"></div></div></div>
+      <div class="math" id="mathBox" style="margin-top:12px"></div>
+    </div>
+    <div class="card stage" data-s="5">
+      <div class="hd"><h3>⑥ Investigation report</h3><span class="pill" id="repPill"></span></div>
+      <div class="report" id="report"></div>
+      <div id="checkBox"></div>
+    </div>
+  </div>
+  <div class="receipt" id="receipt"></div>
+  <details class="raw"><summary>Raw record from <code>simguard.db</code></summary><pre id="rawJson"></pre></details>
+</div></section>
+
+<!-- 5. MATH -->
+<section id="math"><div class="wrap">
+  <div class="kicker">Check the math yourself</div>
+  <h2>The decision logic is open and repeatable.</h2>
+  <p class="lead">Fusion and the evidence rules are plain math, ported line for line from <code>api/fusion.py</code> and <code>agents/evidence.py</code>. When this page loads, it recomputes every recorded case and compares the result with what the server stored.</p>
+  <div class="grid g2" style="margin-top:20px;align-items:start">
+    <div class="card">
+      <h3>Fusion playground</h3>
+      <div class="slider"><label>Laya p(fraud) <output id="pOut"></output></label><input type="range" id="pIn" min="0" max="1" step="0.001" value="0.62"></div>
+      <div class="slider"><label>ML risk score <output id="mOut"></output></label><input type="range" id="mIn" min="0" max="100" step="0.1" value="40"></div>
+      <div class="verdict" id="pgBox" style="margin-top:8px"><div class="big" id="pgScore"></div><div><div style="font-weight:700" id="pgVerdict"></div><div class="small" id="pgWhy"></div></div></div>
+      <div class="math" id="pgMath" style="margin-top:12px"></div>
+      <p class="small muted" style="margin:10px 0 0">Laya weight 0.7, Laya threshold 0.5, ML "high" at 70. These are the defaults from <code>.env.example</code>. Scores are clamped to [0.01, 0.99] before the logit.</p>
+    </div>
+    <div class="grid" style="gap:16px">
+      <div class="card selfcheck">
+        <h3>Self-check against stored results</h3>
+        <table><thead><tr><th>Case</th><th class="n">Stored</th><th class="n">Recomputed here</th><th></th></tr></thead><tbody id="selfRows"></tbody></table>
+        <p class="small muted" style="margin:10px 0 0" id="selfNote"></p>
+      </div>
+      <div class="card">
+        <h3>Evidence rules, live</h3>
+        <div class="toggles" id="evToggles"></div>
+        <div class="slider"><label>Days since SIM activation <output id="actOut"></output></label><input type="range" id="actIn" min="0" max="400" value="3"></div>
+        <div class="slider"><label>SIM changes in last 30 days <output id="chgOut"></output></label><input type="range" id="chgIn" min="0" max="8" value="2"></div>
+        <div class="chips" id="evOut"></div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 6. RESULTS -->
+<section id="results"><div class="wrap">
+  <div class="kicker">Measured results</div>
+  <h2>Fine-tuning took Laya from no signal to a working classifier.</h2>
+  <p class="lead">These figures come from evaluation reports in the repository (<code>finetune/fraud_v2/runs/</code>). Test sets were never used in training, and an exact-duplicate leakage check found 0 overlaps.</p>
+  <div class="grid g2" style="margin-top:20px;align-items:start">
+    <div class="card">
+      <h3>Laya accuracy: base vs fine-tuned</h3>
+      <div class="legend"><span><i style="background:var(--ink-3)"></i>Base Laya</span><span><i style="background:var(--accent)"></i>Fine-tuned</span></div>
+      <div id="layaBars"></div>
+      <p class="small muted" style="margin:12px 0 0">The base model said "not fraud" to almost everything, so its 25.6% is not a fair "before". Compared with always answering "fraud" (74.4% on test), the real gain is +24.7 points on test and +28.2 points on hard cases.</p>
+    </div>
+    <div class="card">
+      <h3>Scoring engine (LightGBM + Isolation Forest)</h3>
+      <div class="tscroll"><table class="t">
+        <tr><th>Metric</th><th class="n">Value</th></tr>
+        <tr><td>Precision</td><td class="n">0.9991</td></tr>
+        <tr><td>Recall</td><td class="n">0.9958</td></tr>
+        <tr><td>PR-AUC</td><td class="n">0.99993</td></tr>
+        <tr><td>Missed fraud / false alarms</td><td class="n">47 / 10</td></tr>
+        <tr><td>Latency (single / batched)</td><td class="n">3.7 / 0.33 ms</td></tr>
+      </table></div>
+      <p class="small muted" style="margin:10px 0 0">15,000 held-out rows, flagged at risk score ≥ 70.</p>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:16px;align-items:start">
+    <div class="card">
+      <h3>The human-review gate at work</h3>
+      <div class="tscroll"><table class="t">
+        <tr><th>Set</th><th class="n">Blocked</th><th class="n">Allowed</th><th class="n">To human</th><th class="n">Fraud let through</th></tr>
+        <tr><td>Normal (6,000)</td><td class="n">4,431</td><td class="n">1,487</td><td class="n">82 (1.4%)</td><td class="n">11 (0.25%)</td></tr>
+        <tr><td>Hard (600)</td><td class="n">216</td><td class="n">253</td><td class="n">131 (21.8%)</td><td class="n">21</td></tr>
+      </table></div>
+      <p class="small muted" style="margin:10px 0 0">On normal traffic the gate decides 98.6% of cases on its own at about 99.6% accuracy, and analysts see 1.4%. On deliberately hard cases it sends 22% to people.</p>
+    </div>
+    <div class="card">
+      <h3>Hard cases by category (fine-tuned accuracy)</h3>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Fine-tuned</span><span><i style="background:var(--ink-3);width:3px"></i>Base</span></div>
+      <div id="cats"></div>
+      <p class="small muted" style="margin:10px 0 0">Two categories got <b>worse</b> than the base model. The base model scored 100% there only because it says "legit" to everything and those cases are legit.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 7. LIMITS -->
+<section id="limits"><div class="wrap">
+  <div class="kicker">Honest limits</div>
+  <h2>What this prototype is not.</h2>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card"><h3>Scope</h3><ul class="lim small">
+      <li><b>Synthetic data only.</b> It has not been validated on real subscriber traffic.</li>
+      <li><b>Decision support, not a verdict.</b> A human reviews every flag. An actual "hold" would need telecom integration that this prototype does not have.</li>
+      <li><b>No authentication.</b> It is meant to run on <code>127.0.0.1</code> only.</li>
+      <li><b>Not DPDP-ready.</b> There is no retention, deletion or grievance workflow yet.</li>
+    </ul></div>
+    <div class="card"><h3>Known weak spots</h3><ul class="lim small">
+      <li>Laya is about 83% accurate on deliberately hard boundary cases, and 8% of those are still confidently wrong.</li>
+      <li>Borderline scores (p ≈ 0.4–0.6) can change slightly with batch size. The human-review band covers these cases.</li>
+      <li>Qwen sometimes invents numbers. The fact-check catches this (see the "Models disagree" replay), and the system then falls back to a template report.</li>
+      <li>The text reader does not guess vague wording such as "recently" or "different city". It reports those values as missing.</li>
+    </ul></div>
+  </div>
+</div></section>
+
+<!-- 8. RUN -->
+<section id="run"><div class="wrap">
+  <div class="kicker">Verify it yourself</div>
+  <h2>One command to run it on Windows.</h2>
+  <div class="grid g2" style="margin-top:20px;align-items:start">
+    <div>
+      <div class="cmd">git clone https://github.com/Rudraksh-wq/SIMGuard_AI.git
+cd SIMGuard_AI
+setup.bat</div>
+      <p class="small muted" style="margin-top:10px">This opens the analyst console at <code>http://127.0.0.1:8501</code> and the API docs at <code>http://127.0.0.1:8000/docs</code>. To run the tests: <code>safe\Scripts\python.exe -m pytest -q</code></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+        <a class="btn ghost" href="https://github.com/Rudraksh-wq/SIMGuard_AI" target="_blank" rel="noopener">Source code ↗</a>
+        <a class="btn ghost" href="https://huggingface.co/Kyoiske/simguard-laya-fraud" target="_blank" rel="noopener">Laya model on Hugging Face ↗</a>
+        <a class="btn ghost" href="https://www.kaggle.com/code/rudraksh12/qwen3-5" target="_blank" rel="noopener">Qwen notebook ↗</a>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Try this in the console</h3>
+      <p class="small muted">Paste into <b>Analyze → Describe in words</b>:</p>
+      <div class="inputbox" style="font-size:.8rem">SIM was swapped 6 minutes after an OTP request. New device, IMSI and ICCID both changed, and the SIM type changed to eSIM. Location similarity is 0.03. The SIM was activated 1 day ago, with 4 SIM changes in the last 30 days. The previous holder only had the number for 12 days. The account is 2 months old. IP address changed.</div>
+      <p class="small" style="margin:10px 0 0">Expected result: all 11 values are read, the case is <span class="pill red">flagged</span>, and the Laya gate says <span class="pill red">block</span>. Remove a few sentences to see the "missing values" panel ask for exactly what is missing.</p>
+    </div>
+  </div>
+</div></section>
+
+<div class="foot"><div class="wrap">SwapSentry (codebase: SIMGuard AI) · prototype on synthetic data · demo page built from the project's own recorded cases and evaluation reports.</div></div>
+<div class="keyhint">← → or PgUp/PgDn to move between sections</div>
+
+<script>
+const CASES = [{"case_id": "818bfab7cf894d228782d54b38920457", "created_at": "2026-11-13T18:06:09.176078Z", "event": {"sim_swap_time_gap_minutes": 45.0, "device_change_flag": 1, "sim_type_change_flag": 0, "imsi_change_flag": 1, "iccid_change_flag": 1, "otp_and_sim_change_geo_hash_length": 0.12, "recent_sim_activation_days": 3.0, "num_sim_changes_last_30d": 2.0, "previous_sim_holder_tenure_days": 40.0, "account_age_days": 120.0, "ip_change_flag": 1}, "ml": {"risk_score": 100.0, "tier": "high", "lgbm_prob": 1.0, "anomaly": 1.0, "contributions": {"sim_type_change_flag": -8.90116058366037, "device_change_flag": 8.16977755891122, "imsi_change_flag": 8.047648765004855, "iccid_change_flag": 7.88205430383135, "recent_sim_activation_days": 4.322385115993079}, "latency_ms": 8.181799996236805}, "laya": {"p_fraud": 1.0, "model": "20261113_171802_a1_6ep/final", "latency_ms": 52.62860000220826, "gate": "block", "error": null}, "final": {"score": 99.4, "tier": "high", "laya_z": 4.595119850134589, "ml_z": 3.7478219897473855, "laya_weight_used": 0.7}, "evidence": ["Device changed", "IMSI changed", "ICCID changed", "recent SIM activation (3 days ago)", "2 SIM changes in the last 30 days", "IP address changed"], "fraud_detected": true, "verdict": "flagged", "agreement": "agree", "report": "**Summary**\nCase flagged as high-risk SIM swap fraud. Model agreement confirms high probability of fraud.\n\n**Supplied Evidence**\n- **Model Scores:** LightGBM fraud probability = 1.0 (100%), ML risk score = 100.0.\n- **Laya Gate:** Block status active.\n- **Key Indicators:** Device, IMSI, and ICCID all changed. SIM activated only 3 days ago. Two SIM changes occurred within the last 30 days.\n- **Behavioral Anomalies:** SIM type unchanged despite multiple changes. Geohash similarity between SIMs is low (0.12).\n- **Timing:** SIM swap occurred 45 minutes after an OTP request.\n- **Context:** Account age 120 days, previous holder tenure 40 days.\n\n**Limitations**\n- Synthetic data used; verdict is based on detector thresholds, not confirmed fraud.\n- No ground truth or historical baseline provided to validate the 100% score.\n- Low geohash similarity (0.12) may indicate a legitimate change rather than fraud.\n- No prior fraud history or specific transaction details provided.\n\n**Suggested Review Steps**\n1. **Verify Context:** Confirm if the synthetic data scenario is representative of real-world conditions.\n2. **Cross-Reference:** Check if the 45-minute gap between OTP and SIM swap is typical for this account type.\n3. **Manual Audit:** Review the specific transaction logs to verify if the SIM swap was authorized or if the low geohash similarity is anomalous.\n4. **Threshold Check:** Ensure the 100% score aligns with the organization's actual fraud thresholds.", "report_source": "qwen", "report_latency_ms": 22058.96689999645, "report_model": "Qwen/Qwen3.5-2B", "report_error": null, "input": {"source": "text", "raw": "SIM changed 45 minutes after an OTP request. Device changed, IMSI changed, ICCID changed, SIM type not changed. Geohash similarity 0.12. SIM activated 3 days ago, 2 SIM changes in last 30 days. Previous holder tenure 40 days, account age 120 days. IP changed.", "extra": {}, "notes": ["read sim_swap_time_gap_minutes = '45 minutes' from the prompt", "read device_change_flag = 1 from the prompt", "read sim_type_change_flag = 0 from the prompt", "read imsi_change_flag = 1 from the prompt", "read iccid_change_flag = 1 from the prompt", "read otp_and_sim_change_geo_hash_length = '0.12' from the prompt", "read recent_sim_activation_days = '3 days' from the prompt", "read num_sim_changes_last_30d = '2' from the prompt", "read previous_sim_holder_tenure_days = '40 days' from the prompt", "read account_age_days = '120 days' from the prompt", "read ip_change_flag = 1 from the prompt"]}, "key": "takeover"}, {"case_id": "9637c73dd2e849e4a0027de203da92a3", "created_at": "2026-11-13T18:10:29.035872Z", "event": {"sim_swap_time_gap_minutes": 9500.0, "device_change_flag": 0, "sim_type_change_flag": 0, "imsi_change_flag": 0, "iccid_change_flag": 1, "otp_and_sim_change_geo_hash_length": 0.94, "recent_sim_activation_days": 400.0, "num_sim_changes_last_30d": 0.0, "previous_sim_holder_tenure_days": 900.0, "account_age_days": 1500.0, "ip_change_flag": 0}, "ml": {"risk_score": 26.980752408253377, "tier": "low", "lgbm_prob": 1.6860926789489596e-09, "anomaly": 0.8993584096742298, "contributions": {"sim_type_change_flag": -8.368613146419747, "imsi_change_flag": -8.361010362021998, "device_change_flag": -8.290704395210415, "iccid_change_flag": 7.900536793802858, "num_sim_changes_last_30d": -4.698086452292254}, "latency_ms": 3.5495999982231297}, "laya": {"p_fraud": 0.0004, "model": "20261113_171802_a1_6ep/final", "latency_ms": 54.8004000011133, "gate": "allow", "error": null}, "final": {"score": 5.1, "tier": "low", "laya_z": -4.59511985013459, "ml_z": -1.842897194401675, "laya_weight_used": 0.7}, "evidence": ["ICCID changed"], "fraud_detected": false, "verdict": "not_flagged", "agreement": "agree", "report": null, "report_source": "none", "report_latency_ms": null, "report_model": null, "report_error": null, "input": {"source": "text", "raw": "time gap: 9500 minutes\ndevice changed: no\nsim type changed: no\nimsi changed: no\niccid changed: yes\ngeohash similarity: 0.94\ndays since sim activation: 400\nsim changes last 30d: 0\nprevious holder tenure: 900 days\naccount age: 1500 days\nip changed: no", "extra": {}, "notes": ["read sim_swap_time_gap_minutes = '9500 minutes' from the prompt", "read device_change_flag = 'no' from the prompt", "read sim_type_change_flag = 'no' from the prompt", "read imsi_change_flag = 'no' from the prompt", "read iccid_change_flag = 'yes' from the prompt", "read otp_and_sim_change_geo_hash_length = '0.94' from the prompt", "read recent_sim_activation_days = '400' from the prompt", "read num_sim_changes_last_30d = '0' from the prompt", "read previous_sim_holder_tenure_days = '900 days' from the prompt", "read account_age_days = '1500 days' from the prompt", "read ip_change_flag = 'no' from the prompt"]}, "key": "store"}, {"case_id": "ea6ac3cbc8df4ff7842071f5fadbf068", "created_at": "2026-11-13T19:34:06.042596Z", "event": {"sim_swap_time_gap_minutes": 12960.0, "device_change_flag": 0, "sim_type_change_flag": 0, "imsi_change_flag": 1, "iccid_change_flag": 1, "otp_and_sim_change_geo_hash_length": 0.94, "recent_sim_activation_days": 9.0, "num_sim_changes_last_30d": 1.0, "previous_sim_holder_tenure_days": 410.0, "account_age_days": 1150.0, "ip_change_flag": 0}, "ml": {"risk_score": 30.002853860235877, "tier": "low", "lgbm_prob": 4.076943194110587e-05, "anomaly": 1.0, "contributions": {"sim_type_change_flag": -8.752093916885725, "iccid_change_flag": 8.746683601830725, "device_change_flag": -8.646546909959477, "imsi_change_flag": 8.137106235878745, "sim_swap_time_gap_minutes": -6.548316811266964}, "latency_ms": 3.897299997333903}, "laya": {"p_fraud": 0.9864, "model": "20261113_171802_a1_6ep/final", "latency_ms": 53.93660000117961, "gate": "block", "error": null}, "final": {"score": 96.6, "tier": "high", "laya_z": 4.2839921591081325, "ml_z": -1.6944598263612862, "laya_weight_used": 0.7}, "evidence": ["IMSI changed", "ICCID changed", "recent SIM activation (9 days ago)", "1 SIM changes in the last 30 days"], "fraud_detected": true, "verdict": "flagged", "agreement": "disagree", "report": "Summary: Verdict flagged. Risk score 96.6 (high). This is suspected risk for human review, not confirmed fraud.\nSupplied evidence:\n- IMSI changed\n- ICCID changed\n- recent SIM activation (9 days ago)\n- 1 SIM changes in the last 30 days\n- LightGBM fraud probability 0.0, Isolation Forest anomaly 1.0\n- Laya p_fraud 0.9864 (gate: block)\nLimitations: Scores come from models trained on synthetic data and do not prove intent.\nSuggested review steps: Hold the request for review, contact the subscriber through a verified channel, and perform extra identity verification.", "report_source": "template", "report_latency_ms": 48430.03750000207, "report_model": "template", "report_error": "QwenError: Qwen report failed validation twice: numbers not present in the supplied data: 1296, 210", "input": {"source": "text", "raw": "SIM changed 12960 minutes after an OTP request. Device not changed, IMSI changed, ICCID changed, SIM type not changed. Geohash similarity 0.94. SIM activated 9 days ago, 1 SIM changes in last 30 days. Previous holder tenure 410 days, account age 1150 days. IP not changed.", "extra": {}, "notes": ["read sim_swap_time_gap_minutes = '12960 minutes' from the prompt", "read device_change_flag = 0 from the prompt", "read sim_type_change_flag = 0 from the prompt", "read imsi_change_flag = 1 from the prompt", "read iccid_change_flag = 1 from the prompt", "read otp_and_sim_change_geo_hash_length = '0.94' from the prompt", "read recent_sim_activation_days = '9 days' from the prompt", "read num_sim_changes_last_30d = '1' from the prompt", "read previous_sim_holder_tenure_days = '410 days' from the prompt", "read account_age_days = '1150 days' from the prompt", "read ip_change_flag = 0 from the prompt"]}, "key": "disagree"}, {"case_id": "a72097f44b4246e4b49af73feecaa746", "created_at": "2026-11-13T19:28:56.283675Z", "event": {"sim_swap_time_gap_minutes": 30.0, "device_change_flag": 1, "sim_type_change_flag": 1, "imsi_change_flag": 1, "iccid_change_flag": 1, "otp_and_sim_change_geo_hash_length": 0.05, "recent_sim_activation_days": 2.0, "num_sim_changes_last_30d": 3.0, "previous_sim_holder_tenure_days": 20.0, "account_age_days": 60.0, "ip_change_flag": 1}, "ml": {"risk_score": 100.0, "tier": "high", "lgbm_prob": 1.0, "anomaly": 1.0, "contributions": {"sim_type_change_flag": 8.908540693725064, "device_change_flag": 8.093553686702975, "imsi_change_flag": 8.029034524744386, "iccid_change_flag": 7.9738052676267905, "recent_sim_activation_days": 4.020982001270483}, "latency_ms": 2.035599998635007}, "laya": {"p_fraud": 1.0, "model": "20261113_171802_a1_6ep/final", "latency_ms": 48.83795000205282, "gate": "block", "error": null}, "final": {"score": 99.4, "tier": "high", "laya_z": 4.595119850134589, "ml_z": 3.7478219897473855, "laya_weight_used": 0.7}, "evidence": ["Device changed", "SIM type changed", "IMSI changed", "ICCID changed", "recent SIM activation (2 days ago)", "3 SIM changes in the last 30 days", "IP address changed"], "fraud_detected": true, "verdict": "flagged", "agreement": "agree", "report": "**Summary**\nCase flagged with high risk (99.4%). Multiple device, SIM, and IMEI changes detected.\n\n**Supplied Evidence**\n- **Laya Model**: p_fraud = 1.0, Gate = block.\n- **ML Model**: LightGBM isolation forest score = 100.0; top contributors: SIM type change (8.9), Device change (8.1), IMEI change (8.0), ICCID change (8.0).\n- **Event Features**: 3 SIM changes in 30 days; 2 days since last SIM activation; 20 days prior tenure; 60 days account age; IP address changed.\n- **Model Agreement**: Agree.\n\n**Limitations**\n- All data is synthetic; verdict is based on detector thresholds, not confirmed fraud.\n- Thresholds (e.g., p_fraud >= 0.5) are not explicitly defined in the provided JSON.\n- No missing measurements or confidence scores provided.\n\n**Suggested Review Steps**\n1. Verify if Laya p_fraud >= 0.5 or ML risk score >= 70 criteria were met.\n2. Confirm if the 3 SIM changes in 30 days and 2-day activation window align with the \"recent SIM activation\" indicator.\n3. Review if the 20-day tenure and 60-day account age suggest a new account or potential reuse.\n4. Validate if the IP address change correlates with the SIM/Device changes.\n5. Ensure the \"block\" gate decision is appropriate given the synthetic nature of the data.", "report_source": "qwen", "report_latency_ms": 18104.00049999589, "report_model": "Qwen/Qwen3.5-2B", "report_error": null, "input": {"source": "json", "raw": "{\"event_id\": \"evt-101\", \"msisdn_hash\": \"a1f9\\u2026\", \"sim_swap_time_gap_minutes\": 30, \"device_change_flag\": 1, \"sim_type_change_flag\": 1, \"imsi_change_flag\": 1, \"iccid_change_flag\": 1, \"otp_and_sim_change_geo_hash_length\": 0.05, \"recent_sim_activation_days\": 2, \"num_sim_changes_last_30d\": 3, \"previous_sim_holder_tenure_days\": 20, \"account_age_days\": 60, \"ip_change_flag\": 1}", "extra": {}, "notes": []}, "key": "upload"}];
+
+const FEATURES = [
+  ["sim_swap_time_gap_minutes","Minutes between OTP request and SIM change"],
+  ["device_change_flag","Device changed"],
+  ["sim_type_change_flag","SIM type changed (e.g. physical → eSIM)"],
+  ["imsi_change_flag","IMSI changed"],
+  ["iccid_change_flag","ICCID changed"],
+  ["otp_and_sim_change_geo_hash_length","Location similarity, OTP vs swap (0–1)"],
+  ["recent_sim_activation_days","Days since the new SIM was activated"],
+  ["num_sim_changes_last_30d","SIM changes in the last 30 days"],
+  ["previous_sim_holder_tenure_days","Previous holder's tenure (days)"],
+  ["account_age_days","Account age (days)"],
+  ["ip_change_flag","IP address changed"],
+];
+const SHORT = {sim_swap_time_gap_minutes:"time gap",device_change_flag:"device changed",sim_type_change_flag:"SIM type changed",imsi_change_flag:"IMSI changed",iccid_change_flag:"ICCID changed",otp_and_sim_change_geo_hash_length:"location similarity",recent_sim_activation_days:"SIM activation age",num_sim_changes_last_30d:"SIM changes / 30d",previous_sim_holder_tenure_days:"prev. holder tenure",account_age_days:"account age",ip_change_flag:"IP changed"};
+const CASE_META = {
+  takeover:{title:"Classic takeover",sub:"Typed in plain English · Qwen report"},
+  store:{title:"Store SIM replacement",sub:"Key: value notes · legitimate"},
+  disagree:{title:"Models disagree",sub:"Fact-check catches Qwen"},
+  upload:{title:"JSON upload",sub:"evt-101 from a batch file"},
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = (x,d=1) => Number(x).toFixed(d);
+
+/* ---------- ported from api/fusion.py ---------- */
+const EPS=0.01, ML_HIGH=70, T=0.5, W=0.7;
+const logit = x => { x=Math.min(Math.max(x,EPS),1-EPS); return Math.log(x/(1-x)); };
+function computeFinal(p, ml){
+  const zMl = logit(ml/100) - logit(ML_HIGH/100);
+  if(p==null) return {score:ml, zL:null, zMl, w:0};
+  const zL = logit(p) - logit(T);
+  const z = W*zL + (1-W)*zMl;
+  return {score:100/(1+Math.exp(-(z+logit(ML_HIGH/100)))), zL, zMl, w:W};
+}
+const tierFor = s => s<40?"low":s<70?"medium":"high";
+const gateFor = p => p==null?"unavailable":p>=0.88?"block":p<=0.12?"allow":"human review";
+/* ---------- ported from agents/evidence.py ---------- */
+const num = v => Number.isInteger(v)?String(v):String(Number(v.toFixed(2)));
+function evidenceFor(e){
+  const out=[];
+  if(e.device_change_flag==1) out.push("Device changed");
+  if(e.sim_type_change_flag==1) out.push("SIM type changed");
+  if(e.imsi_change_flag==1) out.push("IMSI changed");
+  if(e.iccid_change_flag==1) out.push("ICCID changed");
+  if(e.recent_sim_activation_days<30) out.push(`recent SIM activation (${num(e.recent_sim_activation_days)} days ago)`);
+  if(e.num_sim_changes_last_30d>0) out.push(`${num(e.num_sim_changes_last_30d)} SIM changes in the last 30 days`);
+  if(e.ip_change_flag==1) out.push("IP address changed");
+  return out;
+}
+
+/* ---------- theme ---------- */
+$("#themeBtn").onclick = () => {
+  const r=document.documentElement, cur=r.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+  r.dataset.theme = cur==="dark"?"light":"dark";
+  try{localStorage.setItem("sg-theme",r.dataset.theme)}catch(e){}
+};
+try{const t=localStorage.getItem("sg-theme"); if(t) document.documentElement.dataset.theme=t;}catch(e){}
+
+/* ---------- features list ---------- */
+$("#featList").innerHTML = FEATURES.map(([k,l])=>`<div class="feat"><span>${l}</span><code>${k}</code></div>`).join("");
+
+/* ---------- pipeline explainer ---------- */
+const STAGES = {
+  input:["Input, in any format","An analyst can describe the event in their own words (sentences, notes, number words such as \"forty five minutes\", percentages), upload CSV, TSV, JSON, JSONL or TXT (up to 2,000 rows), or use a guided form."],
+  parse:["Parser → 11 features","<code>api/input_parser.py</code> pulls out the 11 model features and logs exactly where each value came from. If something is missing it names what is missing and gives an example. <b>It never guesses.</b>"],
+  ml:["LightGBM + Isolation Forest","LightGBM gives a fraud probability. An Isolation Forest, trained only on normal events, gives an anomaly score. ML risk = <code>100 × (0.7 × LightGBM + 0.3 × anomaly)</code>. Per-feature contributions are kept to show <i>why</i>. Takes about 3.7 ms."],
+  laya:["Laya, fine-tuned","The event is written out as the exact text Laya was fine-tuned on (<code>Kyoiske/simguard-laya-fraud</code>, ModernBERT-large). It returns p(fraud) in about 40–55 ms on a laptop GPU. Gate: <b>block</b> at p ≥ 0.88, <b>allow</b> at p ≤ 0.12, otherwise <b>human review</b>."],
+  evidence:["Evidence rules","Plain rules: device, IMSI or ICCID changed, SIM type changed, SIM activated less than 30 days ago, repeated SIM changes, IP changed. This is the <b>only</b> source of the evidence list, so a language model can never add evidence."],
+  fusion:["Fusion","The two scores are combined in log-odds (Laya weight 0.7) into one 0–100 risk score: low below 40, medium 40–69, high 70 and above. Whether the models <b>agree</b> is recorded too. The math is on this page under \"Check the math\"."],
+  gate:["Decision rule","An event is <b>flagged</b> if Laya says fraud (p ≥ 0.5) <b>or</b> the ML risk is 70 or more. Either model alone can raise a flag, so one model missing it is not enough to let fraud through."],
+  qwen:["Qwen 3.5 2B, fact-checked","For flagged and human-review cases, Qwen (on a Kaggle T4 GPU) writes a short report from the verdict, scores and evidence. The report is checked for <b>numbers not in the data</b> and for over-claims such as \"confirmed fraud\". If it fails twice, or Qwen is offline, a template report is used instead."],
+  nore:["Not flagged","Cases that are not flagged are stored with their scores and evidence but get no language-model report. An analyst can still ask for one."],
+  human:["Analyst decides","The analyst reviews the case and marks it <b>confirmed</b> or <b>false alarm</b>. Every step is written to SQLite with an audit trail."],
+};
+function showStage(k){
+  document.querySelectorAll(".pipe .node").forEach(n=>n.classList.toggle("on",n.dataset.k===k));
+  const [h,b]=STAGES[k]; $("#stageInfo").innerHTML=`<h3>${h}</h3><p style="margin:0;color:var(--ink-2)">${b}</p>`;
+}
+document.querySelectorAll(".pipe .node").forEach(n=>n.addEventListener("click",()=>showStage(n.dataset.k)));
+showStage("fusion");
+
+/* ---------- replay ---------- */
+let current=null, timers=[], typing=null;
+$("#caseTabs").innerHTML = CASES.map(c=>`<button class="tab" data-k="${c.key}"><b>${CASE_META[c.key].title}</b><span>${CASE_META[c.key].sub}</span></button>`).join("");
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>selectCase(t.dataset.k));
+
+function prettyRaw(c){
+  if(c.input.source==="text") return c.input.raw;
+  try{ return JSON.stringify(JSON.parse(c.input.raw),null,1); }catch(e){ return c.input.raw; }
+}
+function resetStages(){
+  timers.forEach(clearTimeout); timers=[]; if(typing) clearInterval(typing);
+  document.querySelectorAll(".stage").forEach(s=>s.classList.remove("lit"));
+  ["#mlMeter","#layaMeter"].forEach(s=>$(s).style.width="0");
+}
+function selectCase(k){
+  current = CASES.find(c=>c.key===k); resetStages();
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on",t.dataset.k===k));
+  $("#srcPill").textContent = current.input.source==="text"?"free text":current.input.source.toUpperCase()+" upload";
+  $("#rawInput").textContent = prettyRaw(current);
+  fill(current);
+  $("#runBtn").disabled=false;
+}
+function md(s){
+  return esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+}
+function fill(c){
+  const notes=c.input.notes||[];
+  $("#parseNotes").innerHTML = notes.length? notes.map(n=>`<li>${esc(n)}</li>`).join("") : `<li>Structured file: all 11 columns mapped directly.</li>`;
+  $("#parsePill").className="pill green"; $("#parsePill").textContent="11 / 11 values read";
+
+  const ml=c.ml;
+  $("#mlLat").textContent=fmt(ml.latency_ms,1)+" ms";
+  $("#mlRisk").textContent=fmt(ml.risk_score,1);
+  $("#lgbm").textContent=ml.lgbm_prob<0.001?ml.lgbm_prob.toExponential(1):fmt(ml.lgbm_prob,4);
+  $("#anom").textContent=fmt(ml.anomaly,3);
+  const max=Math.max(...Object.values(ml.contributions).map(Math.abs));
+  $("#contribs").innerHTML = Object.entries(ml.contributions).map(([k,v])=>{
+    const w=Math.abs(v)/max*50, col=v>0?"var(--danger)":"var(--ok)", pos=v>0?`left:50%;width:${w}%`:`right:50%;width:${w}%`;
+    return `<div class="contrib"><span>${SHORT[k]||k}</span><div class="bar"><i style="${pos};background:${col}"></i></div><span class="val">${v>0?"+":""}${fmt(v,1)}</span></div>`;
+  }).join("");
+
+  const L=c.laya;
+  $("#layaLat").textContent=fmt(L.latency_ms,1)+" ms";
+  $("#layaP").textContent=L.p_fraud==null?"n/a":fmt(L.p_fraud,4);
+  const g=$("#layaGate"); g.textContent=L.gate; g.className="pill "+(L.gate==="block"?"red":L.gate==="allow"?"green":"amber");
+
+  $("#evidence").innerHTML = c.evidence.length? c.evidence.map(e=>`<span class="pill amber">${esc(e)}</span>`).join("") : `<span class="muted small">No indicators fired.</span>`;
+
+  const f=c.final, flagged=c.verdict==="flagged";
+  $("#finalScore").textContent=fmt(f.score,1);
+  $("#verdictBox").className="verdict "+(flagged?"red":"green");
+  $("#verdictTxt").textContent=(flagged?"FLAGGED":"NOT FLAGGED")+" · "+f.tier+" risk";
+  const lf=L.p_fraud>=T, mf=ml.risk_score>=ML_HIGH;
+  $("#verdictWhy").textContent = flagged ? `Raised by ${[lf&&"Laya (p ≥ 0.5)",mf&&"ML (risk ≥ 70)"].filter(Boolean).join(" and ")}` : "Neither Laya nor ML crossed its threshold";
+  const ap=$("#agreePill"); ap.textContent="models "+c.agreement; ap.className="pill "+(c.agreement==="agree"?"green":"amber");
+  $("#mathBox").textContent =
+`z_laya = logit(${fmt(L.p_fraud,4)}) − logit(0.5)      = ${fmt(f.laya_z,3)}
+z_ml   = logit(${fmt(ml.risk_score/100,4)}) − logit(0.70)   = ${fmt(f.ml_z,3)}
+z      = 0.7·z_laya + 0.3·z_ml          = ${fmt(0.7*f.laya_z+0.3*f.ml_z,3)}
+score  = 100·σ(z + logit(0.70))         = ${fmt(f.score,1)}`;
+
+  const rp=$("#repPill");
+  if(c.report_source==="qwen"){rp.className="pill blue";rp.textContent=`${c.report_model} · ${fmt(c.report_latency_ms/1000,1)} s`;}
+  else if(c.report_source==="template"){rp.className="pill amber";rp.textContent="template fallback";}
+  else {rp.className="pill";rp.textContent="not needed";}
+  $("#report").innerHTML = c.report? "" : `<span class="muted">No report: the case was not flagged, so the language model is not called. This keeps the slow model off ordinary traffic.</span>`;
+  $("#checkBox").innerHTML="";
+
+  $("#receipt").innerHTML = `<span>case_id <code>${c.case_id}</code></span><span>recorded ${c.created_at.replace("T"," ").slice(0,19)} UTC</span><span>Laya checkpoint <code>${esc(L.model)}</code></span>`;
+  $("#rawJson").textContent = JSON.stringify(c,null,1);
+}
+function lightStage(i){ const s=document.querySelector(`.stage[data-s="${i}"]`); s.classList.add("lit"); }
+function run(){
+  const c=current, fast=$("#fastChk").checked; resetStages(); $("#runBtn").disabled=true;
+  const step=fast?0:650; let t=0;
+  const at=(fn,d)=>{t+=d; timers.push(setTimeout(fn,fast?0:t));};
+  at(()=>lightStage(0),0);
+  at(()=>{lightStage(1); $("#mlMeter").style.width=c.ml.risk_score+"%"; $("#mlMeter").style.background=c.ml.risk_score>=70?"var(--danger)":"var(--ok)";},step);
+  at(()=>{lightStage(2); const p=c.laya.p_fraud*100; $("#layaMeter").style.width=Math.max(p,1)+"%"; $("#layaMeter").style.background=p>=50?"var(--danger)":"var(--ok)";},step);
+  at(()=>lightStage(3),step);
+  at(()=>lightStage(4),step);
+  at(()=>{lightStage(5); typeReport(c,fast);},step);
+}
+function typeReport(c,fast){
+  const box=$("#report");
+  if(!c.report){ $("#runBtn").disabled=false; return; }
+  const done=()=>{
+    box.innerHTML=md(c.report);
+    if(c.report_source==="qwen") $("#checkBox").innerHTML=`<div class="check ok">✅ <div><b>Fact check passed.</b> Every number in the report appears in the supplied data, and there are no over-claims. Real generation time on the Kaggle T4: ${fmt(c.report_latency_ms/1000,1)} s (sped up here).</div></div>`;
+    else $("#checkBox").innerHTML=`<div class="check bad">🛑 <div><b>Fact check rejected Qwen twice.</b><br><code style="font-size:.8rem">${esc(c.report_error)}</code><br>Qwen invented numbers that were not in the data, so SwapSentry replaced its draft with the template report above. A made-up figure never reaches the analyst.</div></div>`;
+    $("#runBtn").disabled=false;
+  };
+  if(fast){done();return;}
+  let i=0; const txt=c.report, n=Math.max(2,Math.ceil(txt.length/160));
+  typing=setInterval(()=>{ i+=n; if(i>=txt.length){clearInterval(typing);done();return;} box.innerHTML=md(txt.slice(0,i))+'<span class="caret"></span>'; },16);
+}
+$("#runBtn").onclick=run;
+selectCase("takeover");
+
+/* ---------- playground ---------- */
+function pg(){
+  const p=+$("#pIn").value, m=+$("#mIn").value, r=computeFinal(p,m);
+  $("#pOut").textContent=p.toFixed(3); $("#mOut").textContent=m.toFixed(1);
+  const lf=p>=T, mf=m>=ML_HIGH, flagged=lf||mf;
+  $("#pgScore").textContent=r.score.toFixed(1);
+  $("#pgBox").className="verdict "+(flagged?"red":"green");
+  $("#pgVerdict").textContent=(flagged?"FLAGGED":"NOT FLAGGED")+" · "+tierFor(Math.round(r.score*10)/10)+" risk";
+  $("#pgWhy").textContent=`Laya gate: ${gateFor(p)} · models ${lf===mf?"agree":"disagree"}`;
+  $("#pgMath").textContent=`z_laya = ${r.zL.toFixed(3)}   z_ml = ${r.zMl.toFixed(3)}
+z = 0.7·${r.zL.toFixed(3)} + 0.3·${r.zMl.toFixed(3)} = ${(W*r.zL+(1-W)*r.zMl).toFixed(3)}
+score = 100·σ(z + ${logit(.7).toFixed(3)}) = ${r.score.toFixed(2)}`;
+}
+["#pIn","#mIn"].forEach(s=>$(s).addEventListener("input",pg)); pg();
+
+/* ---------- self-check ---------- */
+let allOk=true;
+$("#selfRows").innerHTML = CASES.map(c=>{
+  const r=computeFinal(c.laya.p_fraud,c.ml.risk_score), s=Math.round(r.score*10)/10;
+  const ev=evidenceFor(c.event), evOk=JSON.stringify(ev)===JSON.stringify(c.evidence);
+  const ok=Math.abs(s-c.final.score)<0.05 && tierFor(s)===c.final.tier && evOk; allOk=allOk&&ok;
+  return `<tr><td>${CASE_META[c.key].title}</td><td class="n">${fmt(c.final.score,1)}</td><td class="n">${s.toFixed(1)}</td><td>${ok?"✅":"❌"}</td></tr>`;
+}).join("");
+$("#selfNote").textContent = allOk ? "All recorded scores, tiers and evidence lists match exactly. The logic shown here is the logic that ran." : "Mismatch found. See the rows above.";
+
+/* ---------- evidence playground ---------- */
+const ev = {device_change_flag:1,sim_type_change_flag:0,imsi_change_flag:1,iccid_change_flag:1,ip_change_flag:1,recent_sim_activation_days:3,num_sim_changes_last_30d:2};
+$("#evToggles").innerHTML = ["device_change_flag","sim_type_change_flag","imsi_change_flag","iccid_change_flag","ip_change_flag"].map(k=>`<label><input type="checkbox" data-k="${k}" ${ev[k]?"checked":""}> ${SHORT[k]}</label>`).join("");
+function evRun(){
+  document.querySelectorAll("#evToggles input").forEach(i=>ev[i.dataset.k]=i.checked?1:0);
+  ev.recent_sim_activation_days=+$("#actIn").value; ev.num_sim_changes_last_30d=+$("#chgIn").value;
+  $("#actOut").textContent=ev.recent_sim_activation_days; $("#chgOut").textContent=ev.num_sim_changes_last_30d;
+  const out=evidenceFor(ev);
+  $("#evOut").innerHTML = out.length? out.map(e=>`<span class="pill amber">${esc(e)}</span>`).join("") : `<span class="muted small">No indicators fire.</span>`;
+}
+$("#evToggles").addEventListener("change",evRun); ["#actIn","#chgIn"].forEach(s=>$(s).addEventListener("input",evRun)); evRun();
+
+/* ---------- results charts ---------- */
+const bars=[["Normal test (6,000)",25.65,99.17],["Hard cases (600)",55.0,83.33],["Validation (3,000)",25.17,99.37]];
+$("#layaBars").innerHTML = bars.map(([l,a,b])=>`
+  <div class="hbar"><span>${l}</span><div>
+    <div class="track" style="height:18px;margin-bottom:4px"><i data-w="${a}" style="width:0;background:var(--ink-3)"></i><span style="font-size:.72rem">${a.toFixed(1)}%</span></div>
+    <div class="track"><i data-w="${b}" style="width:0;background:var(--accent)"></i><span style="color:#fff">${b.toFixed(1)}%</span></div>
+  </div></div>`).join("");
+const cats=[["far_but_flagged",50,100],["distractor_age",50,97],["quiet_takeover",0,95],["behaviour_storm",100,84],["two_changes_benign",100,83],["flip_pair",50,76.5],["knife_edge_double",50,73],["knife_edge_single",50,71]];
+$("#cats").innerHTML = cats.map(([k,a,b])=>`<div class="cat"><span class="mono" style="font-size:.76rem">${k}</span><div class="track"><i data-w="${b}" style="width:0;left:0;background:${b<a?"var(--danger)":"var(--accent)"}"></i><b style="left:calc(${a}% - 1px)"></b></div><span class="n">${a}% → ${b}%</span></div>`).join("");
+const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.querySelectorAll("[data-w]").forEach(i=>i.style.width=i.dataset.w+"%"); io.unobserve(e.target);} }),{threshold:.25});
+["#layaBars","#cats"].forEach(s=>io.observe($(s)));
+
+/* ---------- nav + presentation keys ---------- */
+const secs=[...document.querySelectorAll("section")], links=[...document.querySelectorAll("#navlinks a")];
+const so=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ links.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)); }}),{rootMargin:"-45% 0px -50% 0px"});
+secs.forEach(s=>so.observe(s));
+document.addEventListener("keydown",e=>{
+  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  const idx=secs.findIndex(s=>s.getBoundingClientRect().top>70); const cur=idx===-1?secs.length-1:Math.max(0,idx-1);
+  if(["ArrowRight","PageDown"].includes(e.key)){e.preventDefault(); secs[Math.min(cur+1,secs.length-1)].scrollIntoView();}
+  if(["ArrowLeft","PageUp"].includes(e.key)){e.preventDefault(); secs[Math.max(cur-1,0)].scrollIntoView();}
+});
+</script>
+</body>
+</html>
