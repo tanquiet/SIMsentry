@@ -1,4 +1,4 @@
-# SIMGuard AI
+# SIMsentryAI
 
 **SIM-swap fraud detection and investigation, with an explanation for every decision.**
 
